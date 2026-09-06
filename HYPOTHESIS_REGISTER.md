@@ -112,3 +112,71 @@ z <=-1,50 -> +1,007%). Tapi walk-forward dengan grid diperluas ke ambang ketat:
 Ambang ketat menaikkan mean tapi menurunkan t dan membuat CI melewati nol —
 sinyalnya jadi terlalu sedikit. Ambang longgar dipertahankan karena lebih tahan
 di luar sampel, bukan karena lebih bagus di dalam sampel.
+
+---
+
+## H2 — VEB (Volatility-Expansion Breakout), LONG — **GAGAL**
+
+**Didaftarkan & diuji:** 2026-08-25
+**Sumber definisi:** `VEB_STRATEGY_SPEC.md` v1.1, parameter dibekukan oleh pemilik
+spec pada 2026-08-25 **sebelum** menyentuh panel ini. Karena itu H2 **tidak** kena
+penalti Bonferroni dari 22 keluarga uji Sesi A — ambangnya |t| > 2 yang normal.
+
+### Definisi (persis spec §3–§5, tidak diubah)
+
+```
+Pada tiap bar 4H tertutup (00,04,08,12,16,20 UTC), untuk tiap perp USDT
+Binance USDS-M dengan >=700 bar 4H riwayat:
+
+  mom180   = close/close.shift(180) - 1
+  volratio = std(ret1,30,ddof=1) / std(ret1,90,ddof=1)
+  atr14    = rolling MEAN True Range 14 bar   (BUKAN Wilder)
+  atr_rank = atr_pct.rolling(500).rank(pct=True)
+  hh20     = high.rolling(20).max().shift(1)
+
+  SINYAL LONG bila: mom180>0 DAN volratio>1 DAN atr_rank<=0,50 DAN high>hh20
+
+  Entry : open bar 4H berikutnya
+  SL    : entry - 1,0 x atr14   TP: entry + 4,0 x atr14
+  Time  : keluar di market setelah 6 bar (24 jam)
+  Urutan sentuh SL vs TP: path scan bar 1H di dalam bar 4H
+  Biaya : 0,20% pulang-pergi + funding aktual sampai jam keluar sebenarnya
+```
+
+### Prediksi yang bisa salah (dibuat sebelum uji)
+
+Spec §5.3 / §14: avgR positif, sekitar **+0,410**; win rate ~43%; DD 15–20%.
+
+### Hasil
+
+| Universe | n | avgR kotor | avgR bersih | t | Vonis |
+|---|---:|---:|---:|---:|---|
+| 8 simbol yang spec setujui | 348 | +0,193 | +0,064 | +0,32 | tidak beda dari nol |
+| Universe layak spec (kri. §1.3 no.3+4) | 2.057 | +0,077 | −0,027 | −0,17 | nol |
+| **Seluruh panel** | **11.271** | **−0,012** | **−0,106** | **−0,85** | **nol / minus** |
+
+| Klaim | Hasil |
+|---|---|
+| avgR +0,410 | +0,373 di **BTC saja** (reproduksi berhasil) → −0,012 di 586 koin |
+| 8/8 simbol positif | 3/8 positif setelah biaya; seluruh surplus dari DOGEUSDT (+1,16) |
+| win rate 43% | 30,6% |
+| R:R 4:1 | efektif 1,9:1 — TP 4 ATR kena hanya 8,4% trade |
+| DD 15–20% | 30–32%, kill switch kena di **semua** konfigurasi portofolio |
+| leverage <= 2x | leverage portofolio nyata **5,12x** (bug: cap per posisi, 3 posisi paralel) |
+
+Konsistensi: **1 dari 9 kuartal positif**; 4 kuartal terakhir minus dengan |t|>2.
+Per koin: hanya 33,4% dari 316 koin (>=15 trade) positif setelah biaya.
+
+### Temuan sampingan yang menutup pertanyaan terbuka
+
+**Bias path scan yang dikhawatirkan `PERBANDINGAN_H1_vs_VEB.md` §4.2 tidak nyata.**
+Hanya 7/11.312 trade (0,06%) menyentuh SL dan TP di bar 1H yang sama. Selisih
+avgR antara scan 1H dan scan 4H saja = **0,013R**. Dengan SL 1 ATR / TP 4 ATR,
+jarak keduanya terlalu jauh untuk tersentuh dalam satu jam. Pertanyaan ini
+**selesai** — jangan diinvestigasi lagi.
+
+### Status
+
+**GAGAL. Ditutup.** Jangan di-tuning berdasarkan hasil ini — uji bersihnya sudah
+terpakai; menyetel parameter sekarang mengubah validasi menjadi pencarian.
+Laporan lengkap: `results/veb/HASIL_BACKTEST_VEB.md`.
