@@ -1,0 +1,11 @@
+# Dependensi minimal untuk Stage 0 logger (src/logger.py) di GitHub Actions.
+# Sengaja dipisah dari requirements.txt: cron harian tidak butuh scipy/matplotlib,
+# dan makin sedikit paket yang di-install makin kecil peluang cron pecah karena
+# rilis baru pihak ketiga.
+#
+# Retensi Gate.io hanya ~42 hari. Kalau cron ini gagal 42 hari berturut-turut,
+# datanya hilang permanen -- karena itu versinya dibatasi, bukan dibiarkan bebas.
+
+pandas>=2.2,<4
+pyarrow>=14,<26
+requests>=2.31,<3

@@ -48,7 +48,7 @@ def describe(sub, direction, run, universe, bucket, btype):
             "mean_ret_net": a["mean"], "t_stat_clustered": a["t"], "p_value_raw": a["p"],
             "ci_lo_net": a["ci_lo"], "ci_hi_net": a["ci_hi"],
             "mean_ret_neutral_net": b["mean"], "t_stat_neutral_net": b["t"],
-            "hit_rate_net": float(np.nanmean(net > 0))}
+            "hit_rate_net": A._hit(net)}
 
 
 def run_buckets(df, bcol, run, universe, btype):
@@ -95,8 +95,12 @@ def main():
     pan = A.load_panel()
     pan["dt"] = pd.to_datetime(pan["date"], utc=True)
     pan["di"] = pan["dt"].values.astype("datetime64[D]").astype(np.int64)
-    ext = pd.concat([pd.read_parquet(f) for f in sorted((C.DATA / "ext").glob("*.parquet"))],
-                    ignore_index=True)
+    ext_files = sorted((C.DATA / "ext").glob("*.parquet"))
+    if not ext_files:
+        raise SystemExit(
+            f"tidak ada file di {C.DATA / 'ext'} - jalankan `python src/factors_ext.py` dulu "
+            "(prasyarat R14-R18, lihat README §8)")
+    ext = pd.concat([pd.read_parquet(f) for f in ext_files], ignore_index=True)
     ext["date"] = pd.to_datetime(ext["date"], utc=True)
     d = pan.merge(ext, on=["date", "symbol"], how="inner")
     print(f"panel={len(pan):,}  setelah join faktor tambahan={len(d):,} "

@@ -34,9 +34,12 @@ def add_executability(df: pd.DataFrame) -> pd.DataFrame:
     step = df["step_size"].to_numpy(dtype=float)
     close = df["close_t"].to_numpy(dtype=float)
     min_qty = step if C.ASSUME_MINQTY_EQ_STEPSIZE else np.full_like(step, np.nan)
-    min_not = np.where(df["symbol"].isin(C.MIN_NOTIONAL_OVERRIDE).to_numpy(),
-                       df["symbol"].map(C.MIN_NOTIONAL_OVERRIDE).to_numpy(dtype=float),
-                       C.DEFAULT_MIN_NOTIONAL)
+    # minQty asli untuk symbol yang minQty != stepSize (config, terverifikasi exchangeInfo)
+    mq_over = df["symbol"].map(getattr(C, "MIN_QTY_OVERRIDE", {})).to_numpy(dtype=float)
+    min_qty = np.where(np.isfinite(mq_over), mq_over, min_qty)
+    has_mn_override = df["symbol"].isin(C.MIN_NOTIONAL_OVERRIDE).to_numpy()
+    mn_override = df["symbol"].map(C.MIN_NOTIONAL_OVERRIDE).to_numpy(dtype=float)
+    min_not = np.where(has_mn_override, mn_override, C.DEFAULT_MIN_NOTIONAL)
     qty_ideal = C.NOTIONAL / close
     qty_actual = floor_to_step(qty_ideal, step)
     notional_actual = qty_actual * close
@@ -55,8 +58,13 @@ def add_executability(df: pd.DataFrame) -> pd.DataFrame:
     for tol in C.QUANT_TOL_SENSITIVITY:
         df[f"executable_tol{int(tol*100)}"] = cond_a & cond_b & (quant_err <= tol)
     df["executable_100usd"] = df[f"executable_tol{int(C.QUANT_TOL*100)}"]
+    # Sensitivitas MIN_NOTIONAL: `mn` menggantikan DEFAULT saja — symbol yang nilai
+    # aslinya diketahui tetap memakai nilai aslinya. Sebelum perbaikan ini
+    # `(mn <= C.NOTIONAL)` adalah skalar, sehingga override diabaikan sepenuhnya dan
+    # BTC/ETH ikut lolos di mn=5.
     for mn in C.MIN_NOTIONAL_SENSITIVITY:
-        df[f"executable_mn{int(mn)}"] = (mn <= C.NOTIONAL) & cond_b & (quant_err <= C.QUANT_TOL)
+        mn_eff = np.where(has_mn_override, mn_override, mn)
+        df[f"executable_mn{int(mn)}"] = (mn_eff <= C.NOTIONAL) & cond_b & (quant_err <= C.QUANT_TOL)
     return df
 
 

@@ -122,6 +122,11 @@ def main():
     for _, x in r.iterrows():
         te = d[(d.dt >= pd.Timestamp(x.test_start, tz="UTC")) & (d.dt < pd.Timestamp(x.test_end, tz="UTC"))]
         allo.append(te[sig(te, x.fund_th, x.zq)])
+    allo = [a for a in allo if len(a)]
+    if not allo:
+        print("\n  TIDAK ADA baris OOS di seluruh fold - gabungan OOS dilewati.")
+        print(f"\n-> {C.RESULTS/'walkforward_funding_intersection.csv'}")
+        return
     A = pd.concat(allo)
     g = S.cluster_mean(A["net"].to_numpy(), A["di"].to_numpy())
     gn = S.cluster_mean(A["net_neutral"].to_numpy(), A["di"].to_numpy())

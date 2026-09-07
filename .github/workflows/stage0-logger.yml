@@ -5,6 +5,10 @@ name: Stage 0 data logger
 # tidak terkena blokir itu. Data OI/LSR/taker retensinya hanya 30 hari dan
 # arsip metrics/ di data.binance.vision berhenti Januari 2022 — jadi data ini
 # hanya ada ke depan.
+#
+# Retensi Gate.io ~42 hari: satu run gagal masih bisa disusul run berikutnya,
+# tapi 42 hari gagal berturut-turut = data hilang permanen. Karena itu step
+# commit di bawah TIDAK boleh menelan error diam-diam.
 
 on:
   schedule:
@@ -18,6 +22,10 @@ concurrency:
   group: stage0-logger
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   log:
     runs-on: ubuntu-latest
@@ -29,14 +37,45 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Versi dipin lewat requirements-logger.txt. Sebelumnya `pip install requests
+      # pandas pyarrow` tanpa batas versi: satu rilis breaking pihak ketiga bisa
+      # mematikan cron ini tanpa ada yang sadar.
       - name: Install deps
-        run: pip install --quiet requests pandas pyarrow
+        run: pip install --quiet -r requirements-logger.txt
 
       - name: Pull futures positioning data (Gate.io)
         run: python src/logger.py --workers 8
 
+      # Baca ulang parquet yang baru ditulis sebelum di-commit. File korup yang
+      # ter-commit lebih buruk daripada run yang gagal: run gagal bisa diulang
+      # besok, data korup baru ketahuan berbulan-bulan kemudian.
+      - name: Verify output
+        run: |
+          python - <<'PY'
+          import glob, json, sys
+          import pandas as pd
+          days = sorted(glob.glob("oi_logs/date=*"))
+          if not days:
+              sys.exit("tidak ada direktori oi_logs/date=*")
+          latest = days[-1]
+          man = json.load(open(f"{latest}/manifest.json"))
+          if man.get("status") == "no_new_data":
+              print(f"{latest}: tidak ada baris baru - tidak apa-apa, lewati verifikasi")
+              raise SystemExit(0)
+          d = pd.read_parquet(f"{latest}/gate_contract_stats.parquet")
+          dup = int(d.duplicated(["contract", "time"]).sum())
+          print(f"{latest}: {len(d):,} baris / {d['contract'].nunique()} kontrak, dupes={dup}")
+          if len(d) != man.get("rows") or dup:
+              sys.exit(f"parquet tidak konsisten dengan manifest (rows={len(d)} vs "
+                       f"{man.get('rows')}, dupes={dup})")
+          PY
+
+      # Commit + push dengan retry. Sebelumnya `git pull --rebase ... || true`
+      # menelan kegagalan rebase, dan satu push yang kalah balapan langsung
+      # membuang data hari itu tanpa percobaan ulang.
       - name: Commit
         run: |
+          set -euo pipefail
           git config user.name  "stage0-logger"
           git config user.email "actions@github.com"
           git add oi_logs
@@ -45,8 +84,18 @@ jobs:
             exit 0
           fi
           git commit -m "data: Stage 0 logger $(date -u +%Y-%m-%d)"
-          git pull --rebase --autostash origin main || true
-          git push origin HEAD:main
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "push berhasil pada percobaan $i"
+              exit 0
+            fi
+            echo "push gagal (percobaan $i), rebase ke origin/main lalu coba lagi"
+            git fetch origin main
+            git rebase origin/main
+            sleep $((i * 5))
+          done
+          echo "::error::push gagal setelah 5 percobaan - data hari ini TIDAK tersimpan"
+          exit 1
 
       - name: Ringkasan
         if: always()
@@ -59,3 +108,6 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "total hari terkumpul: $(ls -d oi_logs/date=* | wc -l)" >> $GITHUB_STEP_SUMMARY
           fi
+          # Umur data terakhir: kalau ini melar melewati beberapa hari, cron-nya mati
+          # diam-diam dan tidak ada yang memberi tahu. Lihat AUDIT.md (C3).
+          echo "hari terakhir: $(ls -d oi_logs/date=* | tail -1)" >> $GITHUB_STEP_SUMMARY

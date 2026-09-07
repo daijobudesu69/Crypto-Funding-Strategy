@@ -361,6 +361,7 @@ datanya hilang selamanya.
 | [`docs/dew-action-plan.md`](docs/dew-action-plan.md) | Rencana Stage 0–6 |
 | [`docs/stage-1.1-backtest-brief.md`](docs/stage-1.1-backtest-brief.md) | Brief eksekusi backtest, kriteria KEEP ditetapkan sebelum melihat hasil |
 | [`results/GATE_executability.md`](results/GATE_executability.md) | Laporan gate eksekutabilitas $6 |
+| [`AUDIT.md`](AUDIT.md) | Audit infrastruktur 2026-09-07: apa yang jalan, apa yang rusak, apa yang sudah diperbaiki |
 
 ---
 
@@ -377,7 +378,7 @@ datanya hilang selamanya.
 | `src/ablation.py` | R0–R8 | 1,3 mnt |
 | `src/smc.py` + `src/ablation_smc.py` | Port SMC LuxAlgo (leg/pivot/BOS/CHoCH) → R9–R13 | 1,0 mnt |
 | `src/factors_ext.py` + `src/ablation_ext.py` | Order Block, FVG, Volume Profile, swing → R14–R18 | 2,6 mnt |
-| `src/orderflow.py` | CVD / taker ratio dari kolom klines → R19–R21 | 0,3 mnt |
+| `src/orderflow.py` | CVD / taker ratio dari kolom klines → `data/orderflow/` (**hanya fitur**; ablation R19–R21 tidak ada di repo) | 0,3 mnt |
 | `src/hour_sensitivity.py` | Panel mini di 6 jam entry berbeda | 0,7 mnt |
 | `src/exit_horizon.py` | Label forward 8/12/24/36/48/72/96 jam | 0,6 mnt |
 | `src/walkforward.py` | 9 fold rolling 6/2 bulan | 0,2 mnt |
@@ -404,7 +405,16 @@ sepakat tanda 50,7% (setara lempar koin), menangkap sinyal asli 18,8%.
 
 ## 8. Cara menjalankan ulang
 
-Butuh Python 3.12+, `pandas`, `pyarrow`, `requests`, `matplotlib`.
+Butuh Python 3.12+ dan `pip install -r requirements.txt`
+(`pandas`, `numpy`, **`scipy`**, `pyarrow`, `requests`, `matplotlib`).
+
+> Urutan di bawah dikoreksi saat audit 2026-09-07. Versi sebelumnya melewatkan
+> `smc.py` dan `factors_ext.py` — keduanya PRASYARAT yang membangun `data/smc/`
+> dan `data/ext/`. Tanpa keduanya, `ablation_smc.py` dan `ablation_ext.py` mati
+> dengan `ValueError: No objects to concatenate`. Sekarang kedua skrip itu berhenti
+> lebih awal dengan pesan yang menyebut prasyaratnya. `scipy` juga terlewat dari
+> daftar dependensi lama, padahal `src/stats.py` mengimpornya dan **setiap** skrip
+> ablation gagal tanpanya.
 
 ```bash
 cd "C:\Crypto data 2"
@@ -413,13 +423,32 @@ set PYTHONIOENCODING=utf-8
 python src\fetch.py            # download arsip (5,8 mnt, 457 MB)
 python src\features.py         # panel per symbol
 python src\panel.py            # fitur cross-sectional + gate
+python src\gate_table.py       # results/GATE_executability.md + tabel gate
+
 python src\ablation.py         # R0-R8
+
+python src\smc.py              # PRASYARAT R9-R13 -> data/smc/
 python src\ablation_smc.py     # R9-R13
+
+python src\factors_ext.py      # PRASYARAT R14-R18 -> data/ext/
 python src\ablation_ext.py     # R14-R18
-python src\orderflow.py        # R19-R21
+
+python src\orderflow.py        # fitur CVD/taker -> data/orderflow/ (lihat catatan)
+python src\exit_horizon.py     # label 8-96 jam -> data/horizons/
+python src\hour_sensitivity.py # 6 jam entry berbeda
 python src\walkforward.py      # 9 fold
 python src\portfolio.py        # simulasi portofolio
+python src\chart.py            # 2 PNG di results/ (jalankan setelah ablation.py)
 ```
+
+**Catatan `orderflow.py`:** skrip itu hanya MEMBANGUN fitur ke `data/orderflow/`.
+Skrip ablation yang menghasilkan angka R19-R21 di §3 tidak pernah di-commit dan
+tidak ada `results/R19*.csv` — baris R19/R20/R21/R21b di tabel §3 **tidak dapat
+direproduksi dari repo ini**. Jangan menulis ulang analisisnya untuk mencocokkan
+angka itu; daftarkan sebagai hipotesis baru dulu (§2.7 no.2).
+
+**Audit infrastruktur:** [`AUDIT.md`](AUDIT.md) — daftar temuan, apa yang sudah
+diperbaiki, dan apa yang masih perlu dijalankan ulang di mesin Anda.
 
 Logger Stage 0 (biasanya dipanggil GitHub Actions, bisa juga lokal):
 
