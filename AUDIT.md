@@ -88,14 +88,36 @@ persis yang dilarang README §2.7 no.2 dan no.6. Docstring `orderflow.py`, READM
 §7 dan §8 dikoreksi supaya jujur soal ini. Kalau R19–R21 mau dihidupkan lagi,
 daftarkan dulu sebagai hipotesis di `HYPOTHESIS_REGISTER.md`.
 
-### A4 — Referensi menggantung ⚠️ ditandai
+### A4 — Kode H2/VEB ada di disk tapi tidak pernah di-commit ⚠️ ditandai
 
 `HYPOTHESIS_REGISTER.md` menunjuk `results/veb/HASIL_BACKTEST_VEB.md` dan
-`PERBANDINGAN_H1_vs_VEB.md`. Keduanya **tidak ada di repo**, dan tidak ada kode
-H2/VEB sama sekali di `src/`. Seluruh keluarga uji H2 — yang README §2.4 laporkan
-dengan n=11.271 — tidak punya jejak yang bisa dieksekusi. H2 statusnya sudah
-GAGAL/DITUTUP jadi ini tidak menghalangi apa pun, tapi kalau file-file itu ada di
-disk lokal, sebaiknya di-commit.
+`PERBANDINGAN_H1_vs_VEB.md`. Di repo, keduanya tidak ada — begitu juga seluruh
+kode H2/VEB. Seluruh keluarga uji H2, yang README §2.4 laporkan dengan n=11.271,
+tidak punya jejak yang bisa dieksekusi dari `git clone`.
+
+**Ditemukan saat menyinkronkan working copy `C:\Crypto data 2`:** file-filenya
+ADA di disk, hanya **untracked** — tidak pernah masuk ke satu commit pun:
+
+```
+src/veb_data.py        159 baris
+src/veb_engine.py      202 baris
+src/veb_portfolio.py   114 baris
+src/veb_run.py          40 baris
+src/veb_stats.py        91 baris
+results/veb/           HASIL_BACKTEST_VEB.md, DATA_MAP.md, veb_hasil.png,
+                       trades_spec8.csv, trades_full.csv,
+                       trades_full_elig.csv, trades_full_clean.csv (~12,8 MB)
+```
+
+`PERBANDINGAN_H1_vs_VEB.md` **benar-benar tidak ada**, di repo maupun di disk —
+referensi itu memang menggantung.
+
+**Belum saya commit.** Menambahkan ~12,8 MB hasil riset ke repo publik adalah
+keputusan Anda, bukan keputusan audit, dan isinya belum saya periksa. Dua pilihan:
+commit `src/veb_*.py` + `results/veb/*.md` + PNG saja (kode dan laporannya, tanpa
+4 CSV trade yang besar), atau semuanya. Yang jelas: selama file itu untracked,
+H2 tidak bisa direproduksi siapa pun — dan satu `git clean -fd` yang salah akan
+menghapusnya permanen.
 
 ---
 
@@ -180,13 +202,28 @@ pelanggaran `ASSUME_MINQTY_EQ_STEPSIZE` dari 658 symbol.
 ALLUSDT; `panel.py` memakai keduanya. Diverifikasi: keenam symbol kini gagal
 `exec_cond_a_min_notional`, ALLUSDT memakai `minQty = 10`.
 
+**Dampaknya — diukur, bukan ditaksir.** Panel penuh di disk lokal (371.408 baris,
+346.870 eligible) dibaca **read-only** dan gate lama diadu dengan gate baru:
+
+| | Gate lama | Gate baru | Selisih |
+|---|---:|---:|---:|
+| Baris executable | 323.243 | 320.323 | −2.920 (−0,903%) |
+| Sinyal H1 | 30.977 | 30.538 | −439 (−1,4%) |
+| H1 net per trade | **+0,5363%** | **+0,5356%** | −0,0007 pp |
+
+Yang dicabut persis 4 symbol × 730 hari: BCHUSDT, ETCUSDT, LINKUSDT, LTCUSDT.
+(BTCUSDT dan ETHUSDT benchmark, sudah di luar `eligible` sejak awal, jadi koreksi
+100→50 tidak berdampak apa pun.)
+
+Kesimpulannya: gate-nya memang salah dan harus diperbaiki, **tapi kesimpulan H1
+tidak bergerak** — +0,536% tetap +0,536%. Jadi tidak ada alasan mencemaskan uji
+November karena koreksi ini.
+
 > **`results/` SENGAJA TIDAK di-regenerate** (keputusan Anda). Angka H1 yang
 > terkunci sebelum uji November tetap seperti apa adanya — H1 tidak di-refit dan
-> tidak ada yang di-tuning. Koreksi gate ini baru berlaku saat pipeline
+> tidak ada yang di-tuning. Koreksi gate baru masuk ke file hasil saat pipeline
 > dijalankan ulang. Sebelum uji ~1 November 2026, jalankan `features.py` →
-> `panel.py` → seterusnya sekali supaya panelnya memakai gate yang benar. Efeknya
-> kecil (4 dari ~752 symbol) tapi arahnya jelas: baris yang selama ini terhitung
-> executable akan hilang.
+> `panel.py` → seterusnya sekali supaya panelnya memakai gate yang benar.
 
 ### B5 — Logger bisa kehilangan data secara permanen ❌ → ✅ diperbaiki
 
@@ -321,8 +358,9 @@ Supaya jelas apa yang tidak perlu dikhawatirkan:
    kode lama.
 2. **Pertimbangkan notifikasi kegagalan cron** (C3). Ini satu-satunya risiko
    kehilangan data permanen yang tersisa.
-3. **Commit file H2/VEB kalau ada di disk lokal** (A4), atau hapus referensinya
-   dari `HYPOTHESIS_REGISTER.md`.
+3. **Putuskan nasib file H2/VEB** (A4). File-filenya ada di
+   `C:\Crypto data 2` tapi untracked — satu `git clean -fd` menghapusnya
+   permanen. Commit, atau hapus referensinya dari `HYPOTHESIS_REGISTER.md`.
 4. **`fapi.binance.com` sekarang jalan dari mesin ini.** Kalau itu bertahan,
    `bookTicker` / `bookDepth` / metrics jadi terjangkau — tapi catat bahwa
    README §5 masih menyatakan sebaliknya, dan sifatnya bisa berubah kapan saja
