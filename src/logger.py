@@ -159,8 +159,8 @@ def main() -> None:
         print(f"  probe {k:13s} HTTP {v['status']}  {v['body'][:90]}", flush=True)
     if pr.get("gate", {}).get("status") != 200:
         print("FATAL: Gate.io tidak bisa diakses dari lokasi ini.", file=sys.stderr)
-        json.dump({"utc": now.isoformat(), "probe": pr, "status": "failed"},
-                  open(dest / "manifest.json", "w"), indent=1)
+        (dest / "manifest.json").write_text(json.dumps(
+            {"utc": now.isoformat(), "probe": pr, "status": "failed"}, indent=1))
         sys.exit(1)
 
     # Jangan panggil Binance kalau probe sudah bilang mati — retry 4x dengan
@@ -210,10 +210,13 @@ def main() -> None:
         # kolom duplikat dari API (nilainya sama persis dengan pasangannya)
         d = d.drop(columns=[c for c in ("short_liq_usd_new", "long_liq_usd_new")
                             if c in d.columns])
+        # URUTAN PENTING: parquet dulu, baru _state.json. Kalau to_parquet gagal
+        # sementara state sudah maju, baris itu tidak akan pernah ditarik lagi dan
+        # hilang permanen begitu retensi Gate.io (~42 hari) lewat.
+        d.to_parquet(dest / "gate_contract_stats.parquet", index=False, compression="zstd")
         for c, t in d.groupby("contract")["time"].max().items():
             state[c] = int(t)
         state_f.write_text(json.dumps(state))
-        d.to_parquet(dest / "gate_contract_stats.parquet", index=False, compression="zstd")
         manifest.update({
             "rows": int(len(d)), "symbols": int(d["contract"].nunique()),
             "time_min": datetime.fromtimestamp(int(d["time"].min()), timezone.utc).isoformat(),

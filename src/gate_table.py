@@ -69,8 +69,7 @@ def main() -> None:
         "exec_rate": g["executable_100usd"].mean(),
         "exec_rate_tol5": g["executable_tol5"].mean(),
         "exec_rate_tol20": g["executable_tol20"].mean(),
-        "fail_min_qty_rate": (~g["exec_cond_b_min_qty"].mean().astype(bool)).astype(float)
-        if False else 1 - g["exec_cond_b_min_qty"].mean(),
+        "fail_min_qty_rate": 1 - g["exec_cond_b_min_qty"].mean(),
         "delisted_in_window": g["is_delisted_in_window"].max(),
     }).reset_index()
     per_sym["step_x_price_median"] = per_sym["step_size_mode"] * per_sym["price_median"]
@@ -88,8 +87,7 @@ def main() -> None:
             .agg(n_obs=("symbol", "size"),
                  n_symbols=("symbol", "nunique"),
                  exec_rate=("executable_100usd", "mean"),
-                 median_quant_err=("quant_err", "median"),
-                 median_step_notional=("step_size", lambda s: np.nan))
+                 median_quant_err=("quant_err", "median"))
             .reset_index())
     tmp = el.assign(step_notional=el["step_size"] * el["close_t"])
     ct["median_step_notional"] = (tmp.groupby(["step_lbl", "price_lbl"])["step_notional"]

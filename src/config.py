@@ -34,12 +34,33 @@ BENCHMARK_SYMBOLS = ("BTCUSDT", "ETHUSDT")   # keputusan Dew: benchmark saja, di
 MIN_HISTORY_DAYS = 30
 
 # ---------------------------------------------------------------- eksekutabilitas (brief §2.5)
-# exchangeInfo tidak dapat diakses dari jaringan ini (semua domain binance.com diblokir).
-# stepSize DITURUNKAN dari GCD volume klines per (symbol, bulan) — tervalidasi 5/5 pada
-# symbol yang nilainya diketahui. Dua nilai di bawah ini ASUMSI, ditandai di semua output.
-ASSUME_MINQTY_EQ_STEPSIZE = True
-DEFAULT_MIN_NOTIONAL = 5.0                    # ASUMSI: standar bursa USDⓈ-M
-MIN_NOTIONAL_OVERRIDE = {"BTCUSDT": 100.0, "ETHUSDT": 20.0}   # ASUMSI (nilai publik yang diketahui)
+# stepSize DITURUNKAN dari eksponen desimal volume klines per (symbol, bulan) — nilai
+# point-in-time, tetap ada untuk symbol delisted. TETAP dipakai sebagai sumber utama.
+#
+# VERIFIKASI 2026-09-07 (audit infrastruktur): fapi.binance.com ternyata reachable dari
+# mesin ini dan exchangeInfo berhasil ditarik (658 perp USDT). Hasil konfrontasi:
+#   * stepSize turunan == LOT_SIZE asli pada 54/54 symbol yang diperiksa  -> metode VALID
+#   * minQty == stepSize pada 657/658 symbol                              -> asumsi VALID
+#     satu-satunya pengecualian: ALLUSDT (stepSize 1, minQty 10)
+#   * MIN_NOTIONAL: 652 symbol = 5, lima symbol = 20, BTCUSDT = 50
+# Override di bawah kini memakai nilai ASLI, bukan tebakan. Sebelumnya BTCUSDT ditulis
+# 100 (salah) dan BCH/LTC/ETC/LINK tidak terdaftar sama sekali, sehingga keempatnya
+# ditandai executable di $6 padahal MIN_NOTIONAL-nya 20.
+# PERINGATAN: ini snapshot 2026-09-07, bukan point-in-time. stepSize sengaja TIDAK
+# diambil dari sini justru karena alasan itu.
+ASSUME_MINQTY_EQ_STEPSIZE = True               # terverifikasi 657/658; ALLUSDT pengecualian
+DEFAULT_MIN_NOTIONAL = 5.0                     # terverifikasi: 652/658 symbol
+MIN_NOTIONAL_OVERRIDE = {                      # exchangeInfo 2026-09-07, nilai asli
+    "BTCUSDT": 50.0,
+    "ETHUSDT": 20.0,
+    "BCHUSDT": 20.0,
+    "LTCUSDT": 20.0,
+    "ETCUSDT": 20.0,
+    "LINKUSDT": 20.0,
+}
+# minQty yang TIDAK sama dengan stepSize (exchangeInfo 2026-09-07).
+# Kosongkan dict ini untuk kembali ke asumsi murni minQty == stepSize.
+MIN_QTY_OVERRIDE = {"ALLUSDT": 10.0}
 MIN_NOTIONAL_SENSITIVITY = (5.0, 10.0, 20.0)
 QUANT_TOL = 0.10                              # brief §2.5 (c)
 QUANT_TOL_SENSITIVITY = (0.05, 0.10, 0.20)

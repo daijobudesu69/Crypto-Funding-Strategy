@@ -1,4 +1,16 @@
-"""R19-R21 — order flow / CVD dari kolom taker klines.
+"""Fitur order flow / CVD dari kolom taker klines (bahan untuk R19-R21).
+
+LINGKUP (dikoreksi saat audit infrastruktur 2026-09-07)
+-------------------------------------------------------
+File ini HANYA MEMBANGUN FITUR ke `data/orderflow/{SYMBOL}.parquet`. File ini TIDAK
+menjalankan ablation dan TIDAK menghasilkan file apa pun di `results/`.
+
+Angka R19/R20/R21/R21b yang dilaporkan di README §3 **tidak dapat direproduksi dari
+repo ini** — skrip ablation yang menghasilkannya tidak pernah di-commit, dan tidak ada
+`results/R19*.csv`. Jangan mengarang ulang skripnya untuk "mencocokkan" angka README:
+menyetel analisis sampai angkanya cocok mengubah verifikasi menjadi pencarian
+(README §2.7 no.2 dan no.6). Kalau R19-R21 mau dipakai lagi, daftarkan dulu sebagai
+hipotesis baru di HYPOTHESIS_REGISTER.md.
 
 Dokumen strategi §1.2 memberi bobot 10% ke "CVD divergence", dan §9 menyatakan
 takerlongshortRatio "retensi 30 hari, tidak bisa dibacktest". Itu benar untuk

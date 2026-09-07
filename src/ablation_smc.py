@@ -59,7 +59,8 @@ def describe(sub, direction, H, run, universe, bucket, btype):
         "ci_lo_net": cn["ci_lo"], "ci_hi_net": cn["ci_hi"],
         "mean_ret_neutral": cng["mean"], "t_stat_neutral": cng["t"],
         "mean_ret_neutral_net": cnn["mean"], "t_stat_neutral_net": cnn["t"],
-        "hit_rate_net": float(np.nanmean(n > 0)),
+        "hit_rate_net": A._hit(n),
+        "n_obs_net": cn["n_obs"], "n_days_net": cn["n_days"],
         "sharpe_daily_ann": S.sharpe_ann(daily.to_numpy(), H),
         "max_dd": S.max_drawdown(daily.to_numpy(), H),
         "reliable": bool(rec["n_days"] >= C.UNRELIABLE_NDAYS)})
@@ -105,6 +106,10 @@ def main():
     t0 = time.time()
     panel = A.load_panel()
     files = sorted((C.DATA / "smc").glob("*.parquet"))
+    if not files:
+        raise SystemExit(
+            f"tidak ada file di {C.DATA / 'smc'} - jalankan `python src/smc.py` dulu "
+            "(prasyarat R9-R13, lihat README §8)")
     print(f"memuat SMC dari {len(files)} symbol ...", flush=True)
     s = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
     s["date"] = pd.to_datetime(s["date"], utc=True)

@@ -40,15 +40,17 @@ def load():
     d["di"] = d["dt"].values.astype("datetime64[D]").astype(np.int64)
     d["zrank"] = d.groupby("di")["funding_ts_z30"].rank(pct=True, method="first")
     d["net"] = d["fwd_48h"] - COST - d["funding_paid_48h"]
-    # hasil dengan stop 3% / target 6% (dari MAE/MFE, bias optimis ~0.08pp di
-    # stop ketat - ditandai, jangan dianggap presisi)
-    st = 0.03
-    hs = d["mae_48h"] <= -st
-    ht = d["mfe_48h"] >= 2 * st
-    sf = hs & (~ht | (d["mae_bar_48h"] <= d["mfe_bar_48h"]))
-    tf = ht & ~sf
-    d["net_stop"] = np.where(sf, -st, np.where(tf, 2 * st, d["fwd_48h"])) \
-        - COST - d["funding_paid_48h"]
+    # CATATAN (audit 2026-09-07): kolom `net_stop` (Skema 2 / 3b, stop 3% / target 6%)
+    # DIHAPUS. Perhitungannya mengurangi `funding_paid_48h` — funding 48 jam PENUH —
+    # dari trade yang keluar di jam ke-2 karena kena stop. Karena ~71% edge H1 berasal
+    # dari funding, seluruh baris ber-stop overstated; README §2.3 menyebut kedua angka
+    # portofolio Skema 2 yang pernah dilaporkan ($120,84 dan $106,57) "keduanya salah".
+    # Commit c1bb542 ("fix: koreksi akuntansi funding") hanya mengubah markdown, kodenya
+    # tidak pernah diperbaiki, dan results/portfolio_sim.csv masih menyimpan angka itu.
+    # Skema 2 sudah DIBATALKAN, jadi barisnya dibuang, bukan diperbaiki — melanggar
+    # aturan README §2.7 no.5 ("funding harus dihitung sampai jam keluar sebenarnya")
+    # dan menyusun ulang aproksimasinya sekarang = riset baru, bukan audit.
+    # Skema 1 dan 3 (H1 tanpa stop) memakai `net` dan TIDAK tersentuh.
     return d.dropna(subset=["net", "close_t", "step_size"])
 
 
@@ -97,6 +99,13 @@ def simulate(d, signal_mask, pick, ret_col="net", seed=0, slots=MAX_SLOTS,
             cand = cand.sort_values("funding_24h_sum")
         for _, row in cand.head(free).iterrows():
             open_pos.append((day + HOLD_DAYS, notional, row[ret_col]))
+    # tutup sisa posisi yang masih terbuka saat deret hari habis. Tanpa ini P&L
+    # 1-3 trade terakhir dibuang diam-diam dari ekuitas akhir maupun dari `trades`.
+    for xd, nom, r in open_pos:
+        eq += nom * r
+        trades.append({"exit_day": xd, "notional": nom, "ret": r, "pnl": nom * r})
+    if open_pos:
+        curve.append({"di": days[-1] + HOLD_DAYS, "equity": eq, "open": 0})
     cv = pd.DataFrame(curve)
     return cv, pd.DataFrame(trades)
 
@@ -143,9 +152,9 @@ def main():
     report("Baseline: koin acak, tanpa filter", pd.Series(True, index=d.index),
            "random", "net", seeds)
     report("Skema 1: H1, pilih acak, tanpa stop", H1, "random", "net", seeds)
-    report("Skema 2: H1, pilih acak, stop 3%/6%", H1, "random", "net_stop", seeds)
     report("Skema 3: H1, funding paling negatif", H1, "min_funding", "net")
-    report("Skema 3b: + stop 3%/6%", H1, "min_funding", "net_stop")
+    print("(Skema 2 / 3b ber-stop dihapus - lihat catatan di load(): akuntansi funding "
+          "salah dan strateginya sudah dibatalkan)")
     print()
     report("Skema 3 dgn notional TETAP $6", H1, "min_funding", "net", dynamic=False)
     report("Skema 3 dgn 6 slot (langgar aturan)", H1, "min_funding", "net", slots=6)

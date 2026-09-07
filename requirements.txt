@@ -1,0 +1,23 @@
+# Dependensi pipeline riset lengkap (src/*.py selain logger).
+#
+# Ditulis saat audit infrastruktur 2026-09-07. Sebelumnya tidak ada file ini dan
+# README hanya menyebut "pandas, pyarrow, requests, matplotlib" -- scipy TERLEWAT,
+# padahal src/stats.py mengimpornya dan SETIAP skrip ablation gagal tanpa scipy.
+#
+# Batas bawah = versi paling tua yang diketahui aman untuk kode ini:
+#   * pandas >= 2.2 : kode sudah sadar pandas 3.0 menyimpan timestamp sebagai
+#                     datetime64[ms] (lihat catatan pd.factorize di
+#                     src/hour_sensitivity.py). Jangan turun ke pandas < 2.
+#   * numpy  >= 1.26: sliding_window_view + np.add.at dipakai di jalur panas.
+# Batas atas dipasang di major berikutnya supaya cron harian tidak pecah sendiri
+# saat ada rilis breaking.
+#
+# Terverifikasi jalan end-to-end pada: Python 3.14.5, pandas 3.0.3, numpy 2.4.6,
+# scipy 1.18.1, pyarrow 25.0.1, matplotlib 3.11.1, requests 2.34.2.
+
+pandas>=2.2,<4
+numpy>=1.26,<3
+scipy>=1.11,<2
+pyarrow>=14,<26
+requests>=2.31,<3
+matplotlib>=3.8,<4

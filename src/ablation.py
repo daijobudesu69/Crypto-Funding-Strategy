@@ -77,6 +77,14 @@ def pct_bucket(df: pd.DataFrame, col: str, width: int, prefix: str) -> pd.Series
 
 
 # ------------------------------------------------------------------ metrik
+def _hit(x: np.ndarray) -> float:
+    """Proporsi observasi positif di antara observasi yang ADA (NaN dibuang, bukan
+    dihitung kalah)."""
+    v = np.asarray(x, dtype=float)
+    v = v[np.isfinite(v)]
+    return float((v > 0).mean()) if v.size else float("nan")
+
+
 def describe(sub: pd.DataFrame, direction: str, H: int, run: str, universe: str,
              bucket: str, bucket_type: str, do_boot: bool) -> dict:
     gross, net, n_gross, n_net = returns(sub, direction, H)
@@ -106,8 +114,13 @@ def describe(sub: pd.DataFrame, direction: str, H: int, run: str, universe: str,
         "mean_ret_neutral": cm_ng["mean"], "t_stat_neutral": cm_ng["t"],
         "ci_lo_neutral": cm_ng["ci_lo"], "ci_hi_neutral": cm_ng["ci_hi"],
         "mean_ret_neutral_net": cm_nn["mean"], "t_stat_neutral_net": cm_nn["t"],
-        "hit_rate_gross": float(np.nanmean(gross > 0)),
-        "hit_rate_net": float(np.nanmean(net > 0)),
+        # hit rate HANYA atas observasi yang nilainya ada. `np.nanmean(x > 0)` salah:
+        # `x > 0` menghasilkan bool tanpa NaN, jadi baris NaN terhitung sebagai KALAH.
+        "hit_rate_gross": _hit(gross),
+        "hit_rate_net": _hit(net),
+        # deret net lebih pendek dari gross kalau funding belum terbit -> laporkan keduanya,
+        # karena mean_ret_net/t_stat_clustered dihitung dari deret NET, bukan gross.
+        "n_obs_net": cm_n["n_obs"], "n_days_net": cm_n["n_days"],
     })
 
     # deret harian bucket = portfolio equal-weight di dalam hari
