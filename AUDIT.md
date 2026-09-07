@@ -112,12 +112,34 @@ results/veb/           HASIL_BACKTEST_VEB.md, DATA_MAP.md, veb_hasil.png,
 `PERBANDINGAN_H1_vs_VEB.md` **benar-benar tidak ada**, di repo maupun di disk —
 referensi itu memang menggantung.
 
-**Belum saya commit.** Menambahkan ~12,8 MB hasil riset ke repo publik adalah
-keputusan Anda, bukan keputusan audit, dan isinya belum saya periksa. Dua pilihan:
-commit `src/veb_*.py` + `results/veb/*.md` + PNG saja (kode dan laporannya, tanpa
-4 CSV trade yang besar), atau semuanya. Yang jelas: selama file itu untracked,
-H2 tidak bisa direproduksi siapa pun — dan satu `git clean -fd` yang salah akan
-menghapusnya permanen.
+**Sudah di-commit** (atas persetujuan pemilik repo), seluruhnya — kode, laporan,
+PNG, dan keempat CSV trade. Dipindai lebih dulu: tidak ada API key, token, atau
+kredensial apa pun.
+
+Dua bug infrastruktur ditemukan di dalam kode itu dan diperbaiki. Parameter VEB
+sendiri tidak disentuh — tetap beku persis seperti di `HYPOTHESIS_REGISTER.md`
+(`mom180>0`, `volratio>1`, `atr_rank<=0,50`, `high>hh20`, SL 1 ATR, TP 4 ATR,
+time exit 6 bar):
+
+* **A4a — path absolut hardcoded.** `veb_data.py`, `veb_run.py`, dan
+  `veb_stats.py` menulis `ROOT = Path(r"C:/Crypto data 2")`. Kode itu **mati
+  begitu repo di-clone orang lain**, atau begitu foldernya dipindah/di-rename.
+  Ironisnya `src/config.py` sejak awal sudah benar (`Path(__file__).resolve()`).
+  Ketiganya disamakan.
+* **A4b — konstanta gate digandakan, dan salinannya sama salahnya.**
+  `veb_portfolio.py` punya `MIN_NOTIONAL = {"BTCUSDT": 100.0, "ETHUSDT": 20.0}`
+  sendiri — salinan kedua dari nilai `config.py` yang ternyata salah (lihat B4).
+  Dua sumber kebenaran untuk konstanta yang sama adalah cara paling andal untuk
+  membuat satu perbaikan hanya mengenai separuh kode. Sekarang diimpor dari
+  `src/config.py`.
+
+`results/veb/` dihasilkan dengan nilai min-notional lama dan **sengaja tidak
+di-regenerate**: H2 sudah GAGAL/DITUTUP, dan koreksi min-notional tidak akan
+membalik vonis itu.
+
+Masih menggantung: `PERBANDINGAN_H1_vs_VEB.md` — tidak ada di repo maupun di
+disk. Rujukannya di `HYPOTHESIS_REGISTER.md` sebaiknya dihapus atau filenya
+dibuat.
 
 ---
 
@@ -358,9 +380,9 @@ Supaya jelas apa yang tidak perlu dikhawatirkan:
    kode lama.
 2. **Pertimbangkan notifikasi kegagalan cron** (C3). Ini satu-satunya risiko
    kehilangan data permanen yang tersisa.
-3. **Putuskan nasib file H2/VEB** (A4). File-filenya ada di
-   `C:\Crypto data 2` tapi untracked — satu `git clean -fd` menghapusnya
-   permanen. Commit, atau hapus referensinya dari `HYPOTHESIS_REGISTER.md`.
+3. **Hapus rujukan `PERBANDINGAN_H1_vs_VEB.md`** dari
+   `HYPOTHESIS_REGISTER.md`, atau buat filenya (A4). Sisa file H2/VEB sudah
+   di-commit.
 4. **`fapi.binance.com` sekarang jalan dari mesin ini.** Kalau itu bertahan,
    `bookTicker` / `bookDepth` / metrics jadi terjangkau — tapi catat bahwa
    README §5 masih menyatakan sebaliknya, dan sifatnya bisa berubah kapan saja
