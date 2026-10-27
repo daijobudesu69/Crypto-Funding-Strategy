@@ -1,5 +1,5 @@
 {
- "utc": "2026-10-27T04:47:19.967727+00:00",
+ "utc": "2026-10-27T06:23:07.610872+00:00",
  "source": "gateio_contract_stats",
  "interval": "1h",
  "limit": 1000,
@@ -13,13 +13,13 @@
    "body": "{ \"code\": 0, \"msg\": \"Service unavailable from a restricted location according to 'b. Eligibility' in https://www.bin"
   }
  },
- "n_contracts": 1061,
- "n_failed": 0,
+ "n_contracts": 1066,
+ "n_failed": 5,
  "binance_exchangeinfo": false,
- "rows": 48806,
+ "rows": 2122,
  "symbols": 1061,
- "time_min": "2026-10-25T07:00:00+00:00",
- "time_max": "2026-10-27T04:00:00+00:00",
+ "time_min": "2026-10-27T05:00:00+00:00",
+ "time_max": "2026-10-27T06:00:00+00:00",
  "columns": [
   "time",
   "lsr_taker",
@@ -47,5 +47,5 @@
   "contract",
   "symbol"
  ],
- "elapsed_sec": 61.8
+ "elapsed_sec": 64.8
 }
