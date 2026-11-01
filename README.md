@@ -330,17 +330,18 @@ sehingga diganti Gate.io. Funding rate yang terbit bulanan bisa direkonstruksi
 dari `premiumIndexKlines` harian bila butuh lag 1 hari (korelasi +0,84 pada
 agregat 24 jam, sepakat tanda 80,9%).
 
-### Stage 0 logger — satu-satunya yang jalan otomatis
+### Stage 0 logger — ditutup 2026-11-01
 
 [`.github/workflows/stage0-logger.yml`](.github/workflows/stage0-logger.yml)
 
 | | |
 |---|---|
-| Jadwal | cron **01:20 UTC** harian + `workflow_dispatch` |
+| Jadwal | **DITUTUP** — run terakhir 2026-11-01 (cron dihapus, `logger.py` menolak jalan setelah `COLLECTION_LAST_DAY`). Dulu: cron 01:20 UTC harian |
 | Sumber | Gate.io `/futures/usdt/contract_stats`, interval 1 jam, limit 1000 (~42 hari) |
 | Mekanisme | Inkremental via `oi_logs/_state.json`; bootstrap ~42 hari, lalu ~24 baris/kontrak/hari |
 | Run pertama | 2026-08-23 — 867.808 baris / 935 kontrak |
-| Run terakhir tercatat | 2026-09-06 — 23.854 baris / 979 kontrak, 52 detik |
+| Run terakhir | 2026-11-01 — 25.680 baris / 1.070 kontrak; cakupan total 2026-07-12 23:00 → 2026-11-01 07:00 UTC, 0 jam bolong |
+| Catatan data | Bar 2026-11-01 00:00–07:00 ada di partisi terakhir — **di luar** jendela Ags–Okt, filter `time < 2026-11-01` saat analisis |
 | Output | Di-commit balik ke `main` oleh workflow (`permissions: contents: write`) |
 
 Kenapa di Actions dan bukan di mesin lokal: `fapi.binance.com` diblokir dari
@@ -462,7 +463,8 @@ python src\logger.py --workers 8
 
 | Kapan | Aksi |
 |---|---|
-| Sekarang – Oktober 2026 | Logger jalan otomatis. **Tidak ada backtest baru** dari data lama |
+| Agustus – Oktober 2026 | Logger jalan otomatis. **Tidak ada backtest baru** dari data lama |
+| 2026-11-01 | **Pengumpulan data ditutup** (run logger terakhir) |
 | ~1 November 2026 | Uji H1 di data Ags–Okt 2026 yang belum pernah dilihat. Kriteria lulus: net > 0 **dan** t > 2,0 |
 | Kalau H1 lolos | Paper trading 60 hari — yang diukur **selisih fill vs sinyal**, bukan P&L |
 | Kalau H1 gagal | Strategi funding ditutup. Lanjut ke positioning Gate.io |

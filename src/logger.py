@@ -50,6 +50,11 @@ BINANCE = "https://fapi.binance.com"
 OUT = Path(__file__).resolve().parent.parent / "oi_logs"
 INTERVAL = "1h"
 LIMIT = 1000                    # ~42 hari riwayat per panggilan
+# Batas akhir pengumpulan data (keputusan Dew): run terakhir adalah 2026-11-01.
+# Uji H1 memakai data Ags-Okt 2026; run tanggal 1 November menangkap jam-jam
+# terakhir 31 Oktober. Run SETELAH tanggal ini keluar tanpa menarik apa pun,
+# supaya jendela data tidak melar diam-diam. Override sadar: --ignore-cutoff.
+COLLECTION_LAST_DAY = "2026-11-01"
 _local = threading.local()
 _lock = threading.Lock()
 
@@ -146,10 +151,16 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit-symbols", type=int, default=0)
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--ignore-cutoff", action="store_true",
+                    help=f"tetap jalan walau sudah lewat {COLLECTION_LAST_DAY}")
     args = ap.parse_args()
 
     t0 = time.time()
     now = datetime.now(timezone.utc)
+    if now.strftime("%Y-%m-%d") > COLLECTION_LAST_DAY and not args.ignore_cutoff:
+        print(f"Pengumpulan data sudah ditutup (hari terakhir {COLLECTION_LAST_DAY}); "
+              f"tidak ada yang ditarik. Pakai --ignore-cutoff kalau memang disengaja.")
+        return
     dest = Path(args.out) / f"date={now.strftime('%Y-%m-%d')}"
     dest.mkdir(parents=True, exist_ok=True)
     print(f"Stage 0 logger — {now.isoformat()}", flush=True)
@@ -210,10 +221,19 @@ def main() -> None:
         # kolom duplikat dari API (nilainya sama persis dengan pasangannya)
         d = d.drop(columns=[c for c in ("short_liq_usd_new", "long_liq_usd_new")
                             if c in d.columns])
+        # Run kedua di tanggal UTC yang sama (mis. workflow_dispatch manual) dulu
+        # MENIMPA parquet run pertama, padahal _state.json sudah maju -> baris run
+        # pertama hilang dari HEAD. Terjadi 2026-10-27 (48.806 baris). Gabungkan.
+        out_f = dest / "gate_contract_stats.parquet"
+        if out_f.exists():
+            prev = pd.read_parquet(out_f)
+            d = (pd.concat([prev, d], ignore_index=True)
+                 .drop_duplicates(["contract", "time"], keep="last")
+                 .sort_values(["contract", "time"]))
         # URUTAN PENTING: parquet dulu, baru _state.json. Kalau to_parquet gagal
         # sementara state sudah maju, baris itu tidak akan pernah ditarik lagi dan
         # hilang permanen begitu retensi Gate.io (~42 hari) lewat.
-        d.to_parquet(dest / "gate_contract_stats.parquet", index=False, compression="zstd")
+        d.to_parquet(out_f, index=False, compression="zstd")
         for c, t in d.groupby("contract")["time"].max().items():
             state[c] = int(t)
         state_f.write_text(json.dumps(state))
@@ -229,6 +249,10 @@ def main() -> None:
         print("  tidak ada baris baru sejak run terakhir", flush=True)
 
     manifest["elapsed_sec"] = round(time.time() - t0, 1)
+    if not frames and (dest / "gate_contract_stats.parquet").exists():
+        # jangan timpa manifest run sebelumnya di hari yang sama (rows/time_min/...)
+        print(f"selesai {manifest['elapsed_sec']}s, manifest {dest} dibiarkan")
+        return
     (dest / "manifest.json").write_text(json.dumps(manifest, indent=1))
     size = sum(p.stat().st_size for p in dest.glob("*")) / 1e6
     print(f"selesai {manifest['elapsed_sec']}s, {size:.1f} MB -> {dest}")

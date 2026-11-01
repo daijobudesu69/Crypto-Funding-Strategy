@@ -10,10 +10,14 @@ name: Stage 0 data logger
 # tapi 42 hari gagal berturut-turut = data hilang permanen. Karena itu step
 # commit di bawah TIDAK boleh menelan error diam-diam.
 
+# PENGUMPULAN DITUTUP: hari terakhir 2026-11-01 (jendela uji H1 = Ags-Okt 2026).
+# Jadwal cron dihapus; src/logger.py juga menolak jalan setelah tanggal itu
+# (COLLECTION_LAST_DAY) kecuali dipanggil dengan --ignore-cutoff. Untuk
+# menghidupkan lagi: kembalikan blok schedule di bawah DAN geser/override cutoff.
+#   schedule:
+#     - cron: "20 1 * * *"    # 01:20 UTC setiap hari
 on:
-  schedule:
-    - cron: "20 1 * * *"      # 01:20 UTC setiap hari
-  workflow_dispatch:           # bisa dijalankan manual dari tab Actions
+  workflow_dispatch:           # manual saja; setelah cutoff logger keluar tanpa menarik data
 
 permissions:
   contents: write

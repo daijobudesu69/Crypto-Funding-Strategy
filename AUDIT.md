@@ -395,3 +395,29 @@ Definisi H1, ambang mana pun, biaya, horizon, universe, kriteria KEEP, isi
 `HYPOTHESIS_REGISTER.md`, seluruh angka hasil di `results/` selain dua baris
 Skema 2/3b yang repo sendiri sudah nyatakan salah, dan seluruh klaim hasil di
 README §1–§6 dan §9–§10.
+
+---
+
+## 2026-11-01 — Penutupan Stage 0 logger + data 27 Oktober yang tertimpa
+
+**Cutoff.** Pengumpulan data ditutup per 2026-11-01 (run terakhir hari itu,
+data s/d 2026-11-01 07:00 UTC). Cron dihapus dari `stage0-logger.yml`, dan
+`src/logger.py` punya `COLLECTION_LAST_DAY = "2026-11-01"`: run setelah tanggal
+itu keluar tanpa menarik apa pun kecuali `--ignore-cutoff`. Bar 2026-11-01
+00:00–07:00 tetap tersimpan sebagai data mentah tapi **di luar** jendela uji
+Ags–Okt — filter `time < 2026-11-01T00:00Z` saat analisis.
+
+**Bug yang ditemukan saat cek cutoff (❌ → ✅).** Tanggal 2026-10-27 workflow
+jalan dua kali (04:47 dan 06:23 UTC). Run kedua menulis ulang
+`date=2026-10-27/gate_contract_stats.parquet` hanya dengan 2.122 baris barunya,
+padahal `_state.json` sudah maju oleh run pertama — 48.806 baris
+(2026-10-25 07:00 → 2026-10-27 04:00, ~46 jam × ~1.060 kontrak) hilang dari HEAD.
+Itulah kenapa tidak ada folder `date=2026-10-26` dan isinya tampak bolong.
+
+- Dipulihkan dari commit `40f284e` dan digabung → 50.928 baris, manifest diberi
+  blok `restored`.
+- `logger.py` kini menggabungkan dengan parquet yang sudah ada di tanggal yang
+  sama, dan tidak menimpa manifest kalau run kedua tidak membawa baris baru.
+- Cek kontinuitas seluruh `oi_logs/` setelah pemulihan: 2.673 jam
+  (2026-07-12 23:00 → 2026-11-01 07:00 UTC), **0 jam hilang, 0 duplikat**
+  (contract, time) lintas partisi; minimum 812 kontrak/jam.
