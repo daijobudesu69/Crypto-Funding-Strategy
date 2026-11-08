@@ -36,7 +36,8 @@ COINS_SHA = "fce7d7914dd184ea0a7236638ec7948283d31b49cff504cff3e013a34a150f23"
 
 
 def frozen_coins() -> list[str]:
-    sha = hashlib.sha256(COINS.read_bytes()).hexdigest()
+    # dinormalkan ke LF: git di Windows (autocrlf) bisa menulis ulang jadi CRLF saat checkout
+    sha = hashlib.sha256(COINS.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     if sha != COINS_SHA:
         raise SystemExit(f"coins_h3_frozen.csv berubah (sha {sha}) — H3 terkunci ke daftar beku.")
     return sorted(pd.read_csv(COINS)["binance"].astype(str))

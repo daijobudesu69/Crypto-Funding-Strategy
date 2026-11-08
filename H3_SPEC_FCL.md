@@ -220,7 +220,7 @@ h3:
 
 Pengaman yang disarankan di kode:
 - **Live terblokir otomatis.** Kalau `mode: live` tapi `approval_ref` kosong, bot menolak membuka posisi dan mengirim alarm.
-- **Cek daftar koin.** Kalau sha256 `coins_file` tidak sama dengan `coins_sha256`, H3 tidak jalan.
+- **Cek daftar koin.** Kalau sha256 `coins_file` (setelah akhir baris CRLF dinormalkan ke LF) tidak sama dengan `coins_sha256`, H3 tidak jalan.
 - **Data kurang.** Koin dengan riwayat funding < 20 hari dilewati, bukan diisi nol.
 
 Pseudocode satu siklus:
