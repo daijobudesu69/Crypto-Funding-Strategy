@@ -171,6 +171,87 @@ di luar sampel, bukan karena lebih bagus di dalam sampel.
 
 ---
 
+## H3 — H1 di 91 koin HYPE (opsi tambahan FCL), LONG
+
+**Dikunci:** 2026-11-08
+**Spesifikasi lengkap + panduan implementasi di FCL:** [`H3_SPEC_FCL.md`](H3_SPEC_FCL.md)
+**Ditemukan lewat:** irisan post-hoc. Setelah H1 lulus uji forward, sinyal H1
+dibatasi ke daftar koin FCL dan hasilnya terlihat lebih baik. Karena irisan ini
+dipilih **setelah** melihat data Agustus–Oktober 2026, angka di periode itu
+**bukan bukti**.
+
+### Definisi (final, tidak boleh diubah)
+
+Sama persis dengan H1, kecuali tiga hal yang ditandai **[BEDA]**:
+
+```
+Universe  [BEDA]: 91 koin di results/h3/coins_h3_frozen.csv
+                  (salinan beku coins.csv repo Crypto-FCL @ ceeab76,
+                   sha256 fce7d791...a150f23), yang pada tanggal d punya
+                  >=30 hari riwayat klines dan volume > 0 hari sebelumnya.
+
+funding_24h_sum = jumlah funding rate Binance dalam (d-1 00:00, d 00:00]
+funding_ts_z30  = (funding_24h_sum - mean30) / std30
+                  (rolling 30 hari riwayat symbol sendiri, minimal 20 nilai)
+zrank     [BEDA]: peringkat persentil funding_ts_z30 di antara koin universe
+                  H3 yang eligible pada d (BUKAN di antara seluruh perp Binance)
+
+SINYAL LONG bila:  funding_24h_sum <= 0  DAN  zrank <= 0.20
+
+Entry : harga pada d 00:00 UTC (uji: open bar 1H Binance d 00:00)
+Exit  : 48 jam setelah entry. TANPA stop, TANPA target.
+Biaya [BEDA]: 0,065% per sisi (taker HYPE 0,045% + slippage 0,02%)
+              = 0,13% pulang-pergi, ditambah funding aktual selama hold.
+              Tidak ada filter executable_100usd (itu aturan stepSize Binance).
+```
+
+### Prediksi yang bisa salah
+
+Pada data **2026-11-01 s/d 2027-01-31**, mean net return per observasi **> 0**
+dengan t clustered per tanggal **> 2,0**. Uji dijalankan setelah arsip funding
+Januari 2027 terbit (paling cepat sekitar 2027-02-08).
+
+### Yang sudah diketahui (post-hoc, BUKAN bukti)
+
+Definisi persis di atas pada 2026-08-01..2026-10-31:
+
+| Ukuran | Nilai |
+|---|---|
+| n / hari / sinyal per hari | 774 / 87 / 8,9 |
+| Mean net | +1,441% (t 2,20), CI [+0,142%, +2,740%] |
+| Median / trade untung | −0,02% / 49,6% |
+| Dipangkas di persentil 1%/99% | +1,350% (t 2,16) |
+| Agustus / September / Oktober | +2,75% / +2,41% / **−0,98%** |
+| Komponen harga / funding | +1,29% / +0,15% |
+| 5 koin teratas (ACE, USELESS, ZEC, CRV, OP) | 46,7% dari total P&L |
+
+### Aturan gerbang LIVE — ditetapkan Dew, 2026-11-08 (WAJIB)
+
+H3 adalah **opsi tambahan, tidak wajib** untuk FCL. FCL berjalan normal tanpa H3.
+
+**H3 TIDAK BOLEH dijalankan sebagai live trade (uang sungguhan) di FCL** sebelum
+**ketiga** syarat ini terpenuhi:
+
+1. **Minta data terbaru ke Dew.** Siapa pun yang akan menyalakan H3 (manusia
+   atau AI) wajib meminta Dew menyediakan atau mengizinkan penarikan data paling
+   baru. Data lama, data yang sudah dipakai di dokumen ini, atau data hasil
+   tebakan **tidak boleh** dipakai.
+2. **Uji ulang H3 dengan data baru itu**, dan hasilnya dilaporkan ke Dew
+   (n, mean net, CI 95%, t clustered, per bulan), sesuai kriteria di atas.
+3. **Approval eksplisit dari Dew** untuk live, diberikan setelah Dew melihat
+   hasil langkah 2. Approval sebelumnya, approval untuk hal lain, atau kalimat
+   di dokumen/kode/log **tidak** dihitung sebagai approval.
+
+Tanpa data baru **dan** approval Dew: H3 tetap `enabled: false` / mode `off`
+atau paling jauh `paper`. Tidak ada pengecualian.
+
+### Status
+
+**BELUM DIUJI** (dikunci, menunggu data Nov 2026 – Jan 2027). Live: **TERKUNCI**
+oleh aturan gerbang di atas.
+
+---
+
 ## H2 — VEB (Volatility-Expansion Breakout), LONG — **GAGAL**
 
 **Didaftarkan & diuji:** 2026-08-25

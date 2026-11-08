@@ -4,6 +4,8 @@
 **Periode uji:** 1 Agustus – 31 Oktober 2026 (data yang belum pernah dilihat)
 **Repo:** `C:\Crypto data 2` → github.com/daijobudesu69/Crypto-Funding-Strategy
 **Commit:** `6b15c0b` (uji forward), `636d3f7` (simulasi paper trade)
+**Revisi 8 Nov 2026 (sore):** ditambah pembanding dengan FCL dan hipotesis baru
+**H3** (§11), opsi tambahan untuk bot FCL. Spesifikasi lengkap H3: [`H3_SPEC_FCL.md`](../../H3_SPEC_FCL.md).
 
 ---
 
@@ -21,6 +23,11 @@
 
 **Langkah berikutnya:** paper trading 60 hari. Yang diukur adalah **selisih fill
 dibanding sinyal**, bukan P&L. H1 **belum boleh dipakai live**.
+
+**Tambahan: H3 (opsi untuk FCL, tidak wajib).** H3 = H1 yang dibatasi ke 91 koin
+bot FCL, dengan biaya HYPE. Dikunci 8 November 2026, diuji di data November 2026 –
+Januari 2027. **Tidak boleh live di FCL** tanpa data terbaru dari Dew, uji ulang
+dengan data itu, dan approval eksplisit Dew. Detail di §11.
 
 Dua hal yang perlu diwaspadai:
 
@@ -323,7 +330,87 @@ Gate.io. Itu perlu dicek sebelum lapisan ini diuji.
 
 ---
 
-## 11. Langkah berikutnya
+## 11. Pembanding dengan FCL dan lahirnya H3
+
+### 11.1 Apa itu FCL
+
+FCL (Funding-Crowding Long/Short, repo `Crypto-FCL`) adalah bot paper yang
+sudah berjalan sejak 24 Oktober 2026:
+
+- **Short** koin dengan funding Binance 14 hari tertinggi, **long** yang terendah.
+- Dollar-neutral, 91 koin yang ada di HYPE, rebalance harian 08:20 UTC, eksekusi di HYPE.
+- Forward Jan 2025 – Okt 2026: $200 → $373 (Sharpe 2,33). Audit memotong ekspektasinya ke Sharpe 1–1,5.
+- Paper per 8 Nov 2026: $198,36 (DD −2,6%). Baru 2 minggu, belum bisa dinilai.
+
+Temuan riset FCL sendiri yang relevan:
+- **Carry murni lemah sebagai alpha.** Memilih koin ber-funding tinggi untuk cash-and-carry merusak nilai.
+- **Yang stabil:** cash-and-carry BTC+ETH yang selalu jalan (~12%/tahun atas modal). Ini premi carry pasar, bukan alpha, dan risikonya ada di ekor (kolaps bursa, depeg, margin call).
+- **Edge FCL ada di sisi short.** Sisi long hampir tidak bernilai sejak 2022.
+
+### 11.2 Kenapa H1 cocok jadi pendamping FCL
+
+H1 adalah strategi **long** pada koin yang funding-nya baru saja jatuh. Ini
+mengisi sisi FCL yang lemah, dengan sinyal yang berbeda: lonjakan 24 jam
+(z-score), bukan level 14 hari.
+
+- **Korelasi harian H1 vs FCL: −0,07** (63 hari tumpang tindih, 1 Ags – 2 Okt 2026). Praktis tidak berkorelasi.
+- **H1 kalau dibatasi ke koin FCL** (zrank masih dihitung di seluruh perp Binance):
+  754 trade, +1,70% (t 2,38), median +0,15%, ~8,7 sinyal per hari.
+
+### 11.3 H3 — definisi yang bisa dijalankan di FCL
+
+Bot FCL hanya punya data funding untuk 91 koinnya, bukan untuk ~685 perp Binance.
+Karena itu H3 dikunci dengan **zrank dihitung di antara 91 koin itu saja**.
+
+| | H1 | **H3** |
+|---|---|---|
+| Universe | Semua perp USDT Binance (~685 eligible/hari) | **91 koin beku** (`results/h3/coins_h3_frozen.csv`) |
+| zrank dihitung di antara | Semua perp Binance eligible | **91 koin H3 yang eligible** |
+| Sinyal | funding 24j ≤ 0 dan zrank ≤ 0,20 | sama |
+| Hold | 48 jam, tanpa stop/target | sama |
+| Biaya | 0,04% pulang-pergi (maker) | **0,13% pulang-pergi** (HYPE 0,065%/sisi) |
+| Filter executable | `executable_100usd` (stepSize Binance) | tidak ada (sizing HYPE) |
+
+Angka post-hoc untuk definisi persis H3 di periode Agustus–Oktober 2026
+(**bukan bukti**, karena irisannya dipilih setelah melihat data ini):
+
+| Ukuran | Nilai |
+|---|---|
+| n / sinyal per hari | 774 / 8,9 |
+| Mean net | +1,44% (t 2,20), CI [+0,14%, +2,74%] |
+| Median / trade untung | −0,02% / 49,6% |
+| Dipangkas di persentil 1%/99% | +1,35% (t 2,16) |
+| Agustus / September / **Oktober** | +2,75% / +2,41% / **−0,98%** |
+| 5 koin teratas | 46,7% dari total P&L |
+
+Angka ini direproduksi persis oleh `src/h3_forward.py`
+(`results/h3/check_2026-08-01_2026-10-31/`).
+
+### 11.4 Uji yang menentukan
+
+- **Periode:** 1 November 2026 – 31 Januari 2027. Dijalankan setelah arsip
+  funding Januari 2027 terbit (± 8 Februari 2027).
+- **Lulus bila:** mean net > 0 **dan** t clustered per tanggal > 2,0.
+- **Gagal:** H3 ditutup. Ambang, horizon, dan daftar koin tidak boleh disetel lalu diuji ulang.
+
+### 11.5 ⛔ Aturan gerbang live H3 (ditetapkan Dew)
+
+H3 adalah **opsi tambahan, tidak wajib** untuk FCL. **H3 tidak boleh dijalankan
+sebagai live trade di FCL** sebelum ketiga syarat ini terpenuhi:
+
+1. **Minta data terbaru ke Dew.** Tidak boleh memakai data lama atau data di laporan ini.
+2. **Uji ulang H3 dengan data baru itu** dan laporkan hasilnya ke Dew.
+3. **Approval eksplisit Dew** setelah melihat hasil itu.
+
+Tanpa ketiganya, H3 tetap mati (`enabled: false`), atau paling jauh `paper`.
+`src/h3_forward.py` menolak jalan tanpa flag `--dew-data-ok`.
+
+Penjelasan cara kerja, contoh, sumber data di bot FCL, konfigurasi, pseudocode,
+dan checklist pemasangan ada di [`H3_SPEC_FCL.md`](../../H3_SPEC_FCL.md).
+
+---
+
+## 12. Langkah berikutnya
 
 1. **Paper trading 60 hari.** Ukur selisih fill dibanding sinyal (harga entry
    dan exit, fill rate order limit, slippage), bukan P&L.
@@ -334,10 +421,13 @@ Gate.io. Itu perlu dicek sebelum lapisan ini diuji.
 3. **Ulangi uji untuk 30–31 Oktober** setelah arsip funding November terbit
    (sekitar 7 Desember 2026). Hanya untuk melengkapi data, bukan untuk mengubah vonis.
 4. **Jangan setel ambang apa pun.** Uji forward ini sudah terpakai.
+5. **H3 (opsional, untuk FCL):** pasang modul dengan `enabled: false`, parity check,
+   opsional paper. Uji forward Nov 2026 – Jan 2027 sekitar 8 Februari 2027,
+   **setelah meminta data terbaru ke Dew**. Live hanya dengan **approval eksplisit Dew**.
 
 ---
 
-## 12. File terkait
+## 13. File terkait
 
 | File | Isi |
 |---|---|
@@ -352,5 +442,9 @@ Gate.io. Itu perlu dicek sebelum lapisan ini diuji.
 | `results/h1_forward/paper_monthly_*.csv` | PnL bulanan per seed |
 | `results/h1_forward/paper_trades_min_funding.csv` | Trade skenario pembanding |
 | `results/h1_forward/paper_trade_3bulan.png` | Grafik |
+| `H3_SPEC_FCL.md` | **Spesifikasi + panduan pemasangan H3 di FCL**, termasuk aturan gerbang live |
+| `src/h3_forward.py` | Uji forward H3 (butuh `--dew-data-ok`) |
+| `results/h3/coins_h3_frozen.csv` | Daftar 91 koin H3 yang dibekukan |
+| `results/h3/check_2026-08-01_2026-10-31/` | Angka post-hoc H3 Ags–Okt (bukan uji resmi) |
 
 *Tidak ada trade nyata yang dijalankan. Repo Crypto-Hold-14d tidak disentuh.*
