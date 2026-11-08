@@ -65,8 +65,64 @@ dengan t clustered per tanggal **> 2,0**.
 
 ### Status
 
-**BELUM TERVALIDASI.** Jangan dipakai live. Evaluasi ulang setelah ada
-≥3 bulan data baru (target: 2026-11-01).
+~~**BELUM TERVALIDASI.**~~ → lihat hasil uji forward di bawah.
+
+### Uji forward 2026-08-01..2026-10-31 — dijalankan 2026-11-08 — **LULUS**
+
+Uji sekali pakai. Definisi, ambang, horizon, biaya: persis seperti di atas, tidak
+ada yang disetel. Skrip: `src/h1_forward.py` (pipeline fetch/features/panel/stats
+yang sama, periode di-override di memori). Output: `results/h1_forward/`.
+
+| Ukuran | Nilai |
+|---|---|
+| n observasi | **4.162** (87 hari, ~47,8 sinyal/hari) |
+| Mean net / observasi | **+1,058%** |
+| CI 95% (t, cluster tanggal) | [+0,296%, +1,821%] |
+| CI 95% (bootstrap tanggal) | [+0,336%, +1,836%] |
+| **t clustered per tanggal** | **+2,76** (p = 0,007) |
+| Komponen harga setelah fee | +0,714% |
+| Komponen funding diterima | +0,345% |
+| Spread vs sisa universe executable | +0,535% (t = 1,94) |
+| Rata-rata seluruh universe executable | +0,566% (pasar naik) |
+
+**Kriteria (mean > 0 DAN t > 2,0): LULUS.**
+
+Per bulan: Agustus +1,578% (t 2,70) · September +1,292% (t 1,67) ·
+**Oktober +0,202% (t 0,32)**.
+
+Pembanding: in-sample +0,536% (t 2,30) · walk-forward OOS +0,634% (t 2,13) ·
+fold terakhir Jun–Jul +0,053%. Peluruhan agregat **tidak** berlanjut, tetapi di
+dalam periode forward sendiri polanya menurun lagi: Ags → Sep → Okt ≈ 0.
+
+Pemeriksaan bug (aturan #4, karena hasil berlawanan arah dengan tren peluruhan):
+- Rekonsiliasi manual 3 baris acak dari ZIP mentah (funding_24h_sum, fwd_48h,
+  funding dibayar): cocok persis.
+- Kode yang sama dijalankan ulang di panel in-sample: +0,527% (t 2,26) vs
+  tercatat +0,536% (t 2,30) → pipeline konsisten.
+- Grouping tanggal via `pd.factorize`; zrank dihitung di antara symbol eligible
+  (teks definisi), baru disaring `executable_100usd`.
+- 5 kontributor terbesar (LSK, SKR, ONG, ONE, RLC) = 37,6% total P&L. Dicek di
+  data 1H: pump nyata dengan volume puluhan–ratusan juta USD/jam dan funding
+  sangat negatif (short squeeze), bukan artefak arsip.
+
+Fakta yang wajib dibawa ke tahap berikutnya (bukan alasan mengubah vonis):
+- **Sangat bergantung ekor.** Median per observasi −0,03%; hanya 49,4% positif.
+  Winsorize 1%: +0,663% (t 1,92). Tanpa 5 symbol teratas: +0,673% (t 1,93).
+  Dengan 3 slot dari ~48 kandidat/hari, menangkap ekor itu bergantung pada aturan
+  pemilihan yang belum ditentukan (kekhawatiran #3 di atas).
+- **Celah data:** arsip Binance tidak memuat 2026-10-28 sama sekali (monthly 1H
+  hanya 720/744 jam, checksum resmi cocok; daily 404). Akibatnya sinyal 26, 28,
+  29 Okt tidak punya harga entry/exit. Sinyal 30–31 Okt tidak punya funding hold
+  (arsip November belum terbit, fapi tidak tembus). Total 228 sinyal tanpa label
+  dibuang. Sensitivitas: menambal 26 Okt dengan close 27 Okt 23:00 → +1,039%
+  (t 2,76), tidak mengubah apa pun.
+- 133 symbol dipangkas ekor klines nol-volume-nya (perp delisted).
+
+### Status
+
+**LULUS uji forward.** Langkah berikutnya sesuai rencana: paper trading 60 hari
+yang mengukur **selisih fill vs sinyal**, bukan P&L. Tetap **jangan dipakai live**.
+Uji forward ini sudah terpakai — tidak boleh diulang dengan ambang lain.
 
 ---
 

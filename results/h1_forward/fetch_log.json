@@ -1,0 +1,9 @@
+{
+ "stats": {
+  "ok": 9277,
+  "cached": 2894,
+  "absent": 1674,
+  "fail": 0
+ },
+ "fails": []
+}
